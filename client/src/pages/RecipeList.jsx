@@ -35,7 +35,9 @@ export default function RecipeList() {
 
   return (
     <div>
-      <h1>레시피 목록</h1>
+      <div className="list-head">
+        <h1>레시피 목록</h1>
+      </div>
 
       <div className="toolbar">
         <div className="tabs">
@@ -58,16 +60,32 @@ export default function RecipeList() {
       </div>
 
       {error && <p className="error">불러오기 실패: {error}</p>}
-      {!error && isLoading && <p className="muted">불러오는 중…</p>}
-      {!error && !isLoading && recipes.length === 0 && (
-        <p className="muted">조건에 맞는 레시피가 없습니다.</p>
+
+      {!error && isLoading && (
+        <div className="state">
+          <div className="spinner" aria-hidden="true" />
+          <p className="muted">불러오는 중…</p>
+        </div>
       )}
 
-      <div className="card-grid">
-        {recipes.map((recipe) => (
-          <RecipeCard key={recipe._id} recipe={recipe} />
-        ))}
-      </div>
+      {!error && !isLoading && recipes.length === 0 && (
+        <div className="state">
+          <span className="state-icon" aria-hidden="true">🔍</span>
+          <p className="muted">
+            {type || q.trim()
+              ? '조건에 맞는 레시피가 없습니다.'
+              : '아직 등록된 레시피가 없습니다.'}
+          </p>
+        </div>
+      )}
+
+      {!error && !isLoading && recipes.length > 0 && (
+        <div className="card-grid">
+          {recipes.map((recipe) => (
+            <RecipeCard key={recipe._id} recipe={recipe} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

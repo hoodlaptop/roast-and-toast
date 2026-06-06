@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import BrewTimer from '../components/BrewTimer.jsx';
 
 const TYPE_LABEL = { coffee: '커피', baking: '베이킹' };
+const TYPE_ICON = { coffee: '☕', baking: '🥐' };
 
 // durationSec(초)을 "m분 s초" 형태로 표시
 function formatDuration(sec) {
@@ -41,7 +42,14 @@ export default function RecipeDetail() {
   }
 
   if (error) return <p className="error">{error}</p>;
-  if (!recipe) return <p className="muted">불러오는 중…</p>;
+  if (!recipe) {
+    return (
+      <div className="state">
+        <div className="spinner" aria-hidden="true" />
+        <p className="muted">불러오는 중…</p>
+      </div>
+    );
+  }
 
   const { type, title, description, ingredients = [], steps = [] } = recipe;
 
@@ -49,7 +57,10 @@ export default function RecipeDetail() {
     <article className="detail">
       <div className="detail-head">
         <div>
-          <span className={`badge badge-${type}`}>{TYPE_LABEL[type] || type}</span>
+          <span className={`badge badge-${type}`}>
+            <span aria-hidden="true">{TYPE_ICON[type]}</span>
+            {TYPE_LABEL[type] || type}
+          </span>
           <h1>{title}</h1>
         </div>
         {isAdmin && (

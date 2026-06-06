@@ -11,13 +11,19 @@ export default function App() {
   return (
     <div className="app">
       <header className="nav">
-        <Link to="/" className="brand">Roast &amp; Toast</Link>
-        <nav>
-          {isAdmin && <Link to="/recipes/new">레시피 추가</Link>}
+        <Link to="/" className="brand">
+          <span className="brand-mark" aria-hidden="true">☕</span>
+          <span>Roast &amp; Toast</span>
+        </Link>
+        <nav className="nav-actions">
+          {isAdmin && <Link to="/recipes/new" className="btn btn-primary btn-sm">레시피 추가</Link>}
           {auth ? (
-            <button onClick={logout}>로그아웃 ({auth.username})</button>
+            <div className="nav-user">
+              <span className="nav-username">{auth.username}</span>
+              <button className="btn btn-ghost btn-sm" onClick={logout}>로그아웃</button>
+            </div>
           ) : (
-            <Link to="/login">로그인</Link>
+            <Link to="/login" className="btn btn-sm">로그인</Link>
           )}
         </nav>
       </header>

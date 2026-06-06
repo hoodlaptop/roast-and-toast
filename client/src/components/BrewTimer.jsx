@@ -110,6 +110,13 @@ export default function BrewTimer({ steps = [] }) {
 
   const currentStep = sequence[currentIndex];
 
+  // 진행바 비율 (표시용 파생값 — 타이머 로직과 무관)
+  const stepPct = isDone
+    ? 100
+    : currentStep.durationSec > 0
+      ? ((currentStep.durationSec - Math.max(remaining, 0)) / currentStep.durationSec) * 100
+      : 0;
+
   return (
     <div className={`brew-timer${isFlashing ? ' brew-flash' : ''}`}>
       <div className="brew-head">
@@ -122,6 +129,11 @@ export default function BrewTimer({ steps = [] }) {
         <div className="brew-current">
           {isDone ? '추출 완료 ☕' : `${currentIndex + 1}/${sequence.length} · ${currentStep.instruction}`}
         </div>
+      </div>
+
+      <div className="brew-progress" role="progressbar"
+           aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(stepPct)}>
+        <div className="brew-progress-fill" style={{ width: `${stepPct}%` }} />
       </div>
 
       <div className="brew-controls">
