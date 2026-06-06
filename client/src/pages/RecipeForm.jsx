@@ -4,6 +4,7 @@ import client from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const emptyIngredient = () => ({ name: '', amount: '' });
+const emptyGroup = () => ({ groupName: '', items: [emptyIngredient()] });
 const emptyStep = () => ({ instruction: '', durationSec: '' });
 
 export default function RecipeForm() {
@@ -15,12 +16,13 @@ export default function RecipeForm() {
   const [type, setType] = useState('coffee');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [ingredients, setIngredients] = useState([emptyIngredient()]);
+  const [yieldText, setYieldText] = useState('');
+  const [ingredientGroups, setIngredientGroups] = useState([emptyGroup()]);
   const [steps, setSteps] = useState([emptyStep()]);
   const [error, setError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 수정 모드면 기존 값 로드
+  // 수정 모드면 기존 값 로드 (백엔드는 항상 ingredientGroups 형태로 응답)
   useEffect(() => {
     if (!isEdit) return;
     client.get(`/recipes/${id}`)
@@ -29,7 +31,17 @@ export default function RecipeForm() {
         setType(r.type);
         setTitle(r.title || '');
         setDescription(r.description || '');
-        setIngredients(r.ingredients?.length ? r.ingredients : [emptyIngredient()]);
+        setYieldText(r.yield || '');
+        setIngredientGroups(
+          r.ingredientGroups?.length
+            ? r.ingredientGroups.map((g) => ({
+                groupName: g.groupName || '',
+                items: g.items?.length
+                  ? g.items.map((it) => ({ name: it.name || '', amount: it.amount || '' }))
+                  : [emptyIngredient()],
+              }))
+            : [emptyGroup()]
+        );
         setSteps(
           r.steps?.length
             ? r.steps.map((s) => ({
@@ -45,16 +57,38 @@ export default function RecipeForm() {
   // 권한 가드: 검증이 끝난 뒤 관리자가 아니면 목록으로 리다이렉트
   if (!isVerifying && !isAdmin) return <Navigate to="/" replace />;
 
-  function handleIngredientChange(index, field, value) {
-    setIngredients((prev) =>
-      prev.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing))
+  function handleGroupNameChange(gi, value) {
+    setIngredientGroups((prev) =>
+      prev.map((g, i) => (i === gi ? { ...g, groupName: value } : g))
     );
   }
-  function handleAddIngredient() {
-    setIngredients((prev) => [...prev, emptyIngredient()]);
+  function handleAddGroup() {
+    setIngredientGroups((prev) => [...prev, emptyGroup()]);
   }
-  function handleRemoveIngredient(index) {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
+  function handleRemoveGroup(gi) {
+    setIngredientGroups((prev) => prev.filter((_, i) => i !== gi));
+  }
+
+  function handleIngredientChange(gi, ii, field, value) {
+    setIngredientGroups((prev) =>
+      prev.map((g, i) =>
+        i === gi
+          ? { ...g, items: g.items.map((it, j) => (j === ii ? { ...it, [field]: value } : it)) }
+          : g
+      )
+    );
+  }
+  function handleAddIngredient(gi) {
+    setIngredientGroups((prev) =>
+      prev.map((g, i) => (i === gi ? { ...g, items: [...g.items, emptyIngredient()] } : g))
+    );
+  }
+  function handleRemoveIngredient(gi, ii) {
+    setIngredientGroups((prev) =>
+      prev.map((g, i) =>
+        i === gi ? { ...g, items: g.items.filter((_, j) => j !== ii) } : g
+      )
+    );
   }
 
   function handleStepChange(index, field, value) {
@@ -98,13 +132,22 @@ export default function RecipeForm() {
       return;
     }
 
+    // 빈 재료 행/빈 그룹은 정리 후 ingredientGroups 로 전송 (구버전 ingredients 는 보내지 않음)
+    const cleanedGroups = ingredientGroups
+      .map((g) => ({
+        groupName: g.groupName.trim(),
+        items: g.items
+          .filter((it) => it.name.trim())
+          .map((it) => ({ name: it.name.trim(), amount: it.amount.trim() })),
+      }))
+      .filter((g) => g.items.length > 0);
+
     const payload = {
       type,
       title: title.trim(),
       description: description.trim(),
-      ingredients: ingredients
-        .filter((ing) => ing.name.trim())
-        .map((ing) => ({ name: ing.name.trim(), amount: ing.amount.trim() })),
+      yield: yieldText.trim(),
+      ingredientGroups: cleanedGroups,
       steps: cleanedSteps,
     };
 
@@ -142,6 +185,15 @@ export default function RecipeForm() {
       </label>
 
       <label className="field">
+        <span>분량</span>
+        <input
+          value={yieldText}
+          onChange={(e) => setYieldText(e.target.value)}
+          placeholder="예: 머핀팬 30개 분량"
+        />
+      </label>
+
+      <label className="field">
         <span>설명</span>
         <textarea
           value={description}
@@ -153,24 +205,42 @@ export default function RecipeForm() {
 
       <fieldset className="group">
         <legend>재료</legend>
-        {ingredients.map((ing, i) => (
-          <div key={i} className="row">
-            <input
-              value={ing.name}
-              onChange={(e) => handleIngredientChange(i, 'name', e.target.value)}
-              placeholder="이름 (예: 원두)"
-            />
-            <input
-              value={ing.amount}
-              onChange={(e) => handleIngredientChange(i, 'amount', e.target.value)}
-              placeholder="양 (예: 18g)"
-            />
-            <button type="button" className="btn btn-ghost" onClick={() => handleRemoveIngredient(i)}>
-              삭제
+        {ingredientGroups.map((g, gi) => (
+          <div key={gi} className="ingredient-group-edit">
+            <div className="row">
+              <input
+                className="group-name-input"
+                value={g.groupName}
+                onChange={(e) => handleGroupNameChange(gi, e.target.value)}
+                placeholder="그룹명 (예: 크림치즈 프로스팅 / 비우면 단일 그룹)"
+              />
+              <button type="button" className="btn btn-ghost" onClick={() => handleRemoveGroup(gi)}>
+                그룹 삭제
+              </button>
+            </div>
+            {g.items.map((it, ii) => (
+              <div key={ii} className="row">
+                <input
+                  value={it.name}
+                  onChange={(e) => handleIngredientChange(gi, ii, 'name', e.target.value)}
+                  placeholder="이름 (예: 박력분)"
+                />
+                <input
+                  value={it.amount}
+                  onChange={(e) => handleIngredientChange(gi, ii, 'amount', e.target.value)}
+                  placeholder="양 (예: 200g)"
+                />
+                <button type="button" className="btn btn-ghost" onClick={() => handleRemoveIngredient(gi, ii)}>
+                  삭제
+                </button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-sm" onClick={() => handleAddIngredient(gi)}>
+              + 재료 추가
             </button>
           </div>
         ))}
-        <button type="button" className="btn" onClick={handleAddIngredient}>+ 재료 추가</button>
+        <button type="button" className="btn" onClick={handleAddGroup}>+ 그룹 추가</button>
       </fieldset>
 
       <fieldset className="group">

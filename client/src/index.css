@@ -247,7 +247,16 @@ a:hover { color: var(--c-brand-dark); }
 .detail-head h1 { margin: var(--sp-2) 0 0; }
 .detail-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
 .detail-desc { color: var(--c-text-soft); font-size: var(--fs-lg); line-height: var(--lh); }
+.detail-yield {
+  margin: var(--sp-2) 0 0; font-size: var(--fs-sm); font-weight: 600;
+  color: var(--c-brand); display: inline-flex; align-items: center; gap: 4px;
+  background: var(--c-brand-soft); padding: 2px var(--sp-3); border-radius: var(--r-pill);
+}
 
+.ingredient-group + .ingredient-group { margin-top: var(--sp-4); }
+.ingredient-group-name {
+  font-size: var(--fs-base); color: var(--c-brand-dark); margin: 0 0 var(--sp-2);
+}
 .ingredient-list { list-style: none; padding: 0; margin: 0; }
 .ingredient-list li {
   display: flex; justify-content: space-between; gap: var(--sp-4);
@@ -358,6 +367,13 @@ a:hover { color: var(--c-brand-dark); }
 }
 .row input:focus { border-color: var(--c-brand); }
 .row .duration-input { flex: 0 0 84px; }
+.ingredient-group-edit {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3); border: 1px solid var(--c-border);
+  border-radius: var(--r-sm); background: var(--c-surface);
+}
+.ingredient-group-edit + .ingredient-group-edit { margin-top: var(--sp-1); }
+.group-name-input { font-weight: 600; }
 .step-no {
   flex: 0 0 26px; height: 26px; display: grid; place-items: center;
   background: var(--c-brand-soft); color: var(--c-brand); border-radius: var(--r-pill);

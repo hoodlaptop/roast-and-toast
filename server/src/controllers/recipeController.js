@@ -5,8 +5,9 @@ const RECIPE_TYPES = ['coffee', 'baking'];
 
 // mass-assignment 방지: 허용된 필드만 추출 (createdBy, _id 등 차단)
 function pickRecipeFields(body = {}) {
-  const { type, title, description, ingredients, steps } = body;
-  return { type, title, description, ingredients, steps };
+  const { type, title, description, ingredients, ingredientGroups, steps } = body;
+  // yield 는 예약어이므로 변수 바인딩 없이 속성으로만 다룬다
+  return { type, title, description, ingredients, ingredientGroups, steps, yield: body.yield };
 }
 
 function validateRecipe(data) {
@@ -17,8 +18,29 @@ function validateRecipe(data) {
   if (!data.title || typeof data.title !== 'string' || !data.title.trim()) {
     errors.push('title 은 필수입니다.');
   }
+  // 재료는 구버전 ingredients 또는 신버전 ingredientGroups 중 하나만 와도 통과 (둘 다 선택)
   if (data.ingredients && !Array.isArray(data.ingredients)) {
     errors.push('ingredients 는 배열이어야 합니다.');
+  }
+  if (data.ingredientGroups != null) {
+    if (!Array.isArray(data.ingredientGroups)) {
+      errors.push('ingredientGroups 는 배열이어야 합니다.');
+    } else {
+      data.ingredientGroups.forEach((g, gi) => {
+        if (!g || !Array.isArray(g.items)) {
+          errors.push(`ingredientGroups[${gi}].items 는 배열이어야 합니다.`);
+          return;
+        }
+        g.items.forEach((it, ii) => {
+          if (!it || typeof it.name !== 'string') {
+            errors.push(`ingredientGroups[${gi}].items[${ii}].name 은 문자열이어야 합니다.`);
+          }
+        });
+      });
+    }
+  }
+  if (data.yield != null && typeof data.yield !== 'string') {
+    errors.push('yield 는 문자열이어야 합니다.');
   }
   if (data.steps && !Array.isArray(data.steps)) {
     errors.push('steps 는 배열이어야 합니다.');
@@ -46,6 +68,19 @@ function normalizeSteps(steps = []) {
   }));
 }
 
+// 응답 정규화: 옛 평탄 ingredients 만 있는 데이터를 ingredientGroups 형태로 변환해 내려준다.
+// (DB 마이그레이션 없이 읽을 때 처리) → 프론트는 항상 ingredientGroups 만 보면 된다.
+function normalizeRecipeResponse(recipe) {
+  const obj = typeof recipe.toObject === 'function' ? recipe.toObject() : recipe;
+  const hasGroups = Array.isArray(obj.ingredientGroups) && obj.ingredientGroups.length > 0;
+  if (!hasGroups) {
+    obj.ingredientGroups = Array.isArray(obj.ingredients) && obj.ingredients.length > 0
+      ? [{ groupName: '', items: obj.ingredients }]
+      : [];
+  }
+  return obj;
+}
+
 async function listRecipes(req, res) {
   const { type, q } = req.query;
   const filter = {};
@@ -58,7 +93,7 @@ async function listRecipes(req, res) {
   if (q) filter.title = { $regex: String(q).trim(), $options: 'i' };
 
   const recipes = await Recipe.find(filter).sort({ createdAt: -1 });
-  res.json(recipes);
+  res.json(recipes.map(normalizeRecipeResponse));
 }
 
 async function getRecipe(req, res) {
@@ -67,7 +102,7 @@ async function getRecipe(req, res) {
   }
   const recipe = await Recipe.findById(req.params.id);
   if (!recipe) return res.status(404).json({ message: '레시피를 찾을 수 없습니다.' });
-  res.json(recipe);
+  res.json(normalizeRecipeResponse(recipe));
 }
 
 async function createRecipe(req, res) {
@@ -77,7 +112,7 @@ async function createRecipe(req, res) {
 
   if (Array.isArray(data.steps)) data.steps = normalizeSteps(data.steps);
   const recipe = await Recipe.create({ ...data, createdBy: req.user.id });
-  res.status(201).json(recipe);
+  res.status(201).json(normalizeRecipeResponse(recipe));
 }
 
 async function updateRecipe(req, res) {
@@ -93,7 +128,7 @@ async function updateRecipe(req, res) {
     new: true, runValidators: true,
   });
   if (!recipe) return res.status(404).json({ message: '레시피를 찾을 수 없습니다.' });
-  res.json(recipe);
+  res.json(normalizeRecipeResponse(recipe));
 }
 
 async function deleteRecipe(req, res) {

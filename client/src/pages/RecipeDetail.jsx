@@ -51,7 +51,7 @@ export default function RecipeDetail() {
     );
   }
 
-  const { type, title, description, ingredients = [], steps = [] } = recipe;
+  const { type, title, description, yield: recipeYield, ingredientGroups = [], steps = [] } = recipe;
 
   return (
     <article className="detail">
@@ -62,6 +62,7 @@ export default function RecipeDetail() {
             {TYPE_LABEL[type] || type}
           </span>
           <h1>{title}</h1>
+          {recipeYield && <p className="detail-yield">🍽 {recipeYield}</p>}
         </div>
         {isAdmin && (
           <div className="detail-actions">
@@ -77,17 +78,22 @@ export default function RecipeDetail() {
 
       <section>
         <h2>재료</h2>
-        {ingredients.length === 0 ? (
+        {ingredientGroups.length === 0 ? (
           <p className="muted">등록된 재료가 없습니다.</p>
         ) : (
-          <ul className="ingredient-list">
-            {ingredients.map((ing, i) => (
-              <li key={i}>
-                <span>{ing.name}</span>
-                {ing.amount && <span className="muted">{ing.amount}</span>}
-              </li>
-            ))}
-          </ul>
+          ingredientGroups.map((group, gi) => (
+            <div key={gi} className="ingredient-group">
+              {group.groupName && <h3 className="ingredient-group-name">{group.groupName}</h3>}
+              <ul className="ingredient-list">
+                {(group.items || []).map((ing, i) => (
+                  <li key={i}>
+                    <span>{ing.name}</span>
+                    {ing.amount && <span className="muted">{ing.amount}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
         )}
       </section>
 
